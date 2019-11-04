@@ -1,0 +1,149 @@
+---
+title: "In Class"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
+library('dendextend')# install.packages('dendextend')
+library('gridExtra')
+library('caret')
+library('tidyverse')
+
+
+data("USArrests")
+dat = USArrests %>%
+  rownames_to_column("State") %>%
+  as_tibble()
+```
+
+
+What is the problem with this data "as is" ?
+```{r}
+head(dat)
+```
+
+
+
+
+
+How do we standardize our data? i.e. mean = 0, sd = 1
+```{r}
+# Simplifying for example purposes
+dat_prep = preProcess(dat, method = c("center", "scale"))
+dat_standardized = predict(dat_prep, dat)
+head(dat_standardized)
+```
+
+Simplification just for illustration purposes. Would normally use something like PCA to get a better results.
+```{r}
+dat_final = dat_standardized %>% 
+  transmute(state = State,
+    crime = Murder + Assault + Rape, 
+    population = UrbanPop)
+head(dat_final)
+```
+
+
+What is the big difference between the following plots? What does each point
+```{r}
+dat_plot = dat %>% 
+  transmute(state = State, 
+            crime = Murder + Assault + Rape, 
+            population = UrbanPop)
+
+p1 = dat_plot %>% ggplot(aes(x = population, y = crime)) + geom_point()
+p2 = dat_final %>% ggplot(aes(x = population, y = crime)) + geom_point()
+
+grid.arrange(p1, p2)
+```
+
+
+
+Let's try hierarchical clustering using `hclust`. In order to utilize this we need to get a distance matrix. This is a 100 x 100 distance matrix. It finds the difference between all points. For visualization we can find examples here <http://www.sthda.com/english/wiki/beautiful-dendrogram-visualizations-in-r-5-must-known-methods-unsupervised-machine-learning>
+
+For the first try, we can use the "complete" method of `hclust` -- what does this mean? Unfortunately, we have to convert back to a dataframe and utilize rownames for hclust to work properly.
+```{r}
+?dist
+?hclust
+dat_df = as.data.frame(dat_final %>% select(crime, population))
+rownames(dat_df) = dat_final$state
+
+distance_data = dist(dat_df, method = 'euclidean')
+hc_complete = hclust(distance_data, method = 'complete')
+plot(hc_complete)
+```
+
+Plot is hard to read, can clean it up.
+```{r}
+plot(hc_complete, hang = -1, cex = 0.6)
+```
+
+
+Rather than "complete" we can try "single" or "average".  
+
+What does "single" do?  
+
+What does "average" do?
+```{r}
+hc_single = hclust(distance_data, method = 'single')
+plot(hc_single, hang = -1, cex = 0.6)
+```
+
+
+```{r}
+hc_average = hclust(distance_data, method = 'average')
+plot(hc_average, hang = -1, cex = 0.6)
+```
+
+
+Let's continue with the `hc_complete` variable. We need to "cut" the tree in order to actually cluster.
+```{r}
+hc_cut = cutree(hc_complete, 4)
+table(hc_cut)
+```
+
+```{r}
+plot(hc_complete, labels = hc_cut, hang = -1, cex = 0.6)
+```
+
+
+What would it look like if we cut it further up?
+```{r}
+hc_cut = cutree(hc_complete, 3)
+table(hc_cut)
+```
+
+```{r}
+plot(hc_complete, labels = hc_cut, hang = -1, cex = 0.6)
+```
+
+
+
+Does color add value? Need to utilize `as.dendrogram` to prepare. Use `k` as the cutoff number.
+```{r}
+k_val = 3
+
+hc_complete_dendro = as.dendrogram(hc_complete)
+
+dend_colored = hc_complete_dendro %>%
+  color_branches(k = k_val) %>%
+  color_labels(k = k_val)
+
+plot(dend_colored)
+```
+
+
+What does a larger `k` do?
+```{r}
+k_val = 5
+
+hc_complete_dendro = as.dendrogram(hc_complete)
+
+dend_colored = hc_complete_dendro %>%
+  color_branches(k = k_val) %>%
+  color_labels(k = k_val)
+
+plot(dend_colored)
+```
+

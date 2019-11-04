@@ -1,0 +1,57 @@
+---
+title: "In Class"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
+library('dendextend')# install.packages('dendextend')
+library('gridExtra')
+library('caret')
+library('tidyverse')
+
+
+data("USArrests")
+dat = USArrests %>%
+  rownames_to_column("State") %>%
+  as_tibble()
+
+# Simplifying for example purposes
+dat_prep = preProcess(dat, method = c("center", "scale"))
+dat_standardized = predict(dat_prep, dat)
+
+dat_final = dat_standardized %>% 
+  transmute(state = State,
+    crime = Murder + Assault + Rape, 
+    population = UrbanPop)
+
+dat_df = as.data.frame(dat_final %>% select(crime, population))
+rownames(dat_df) = dat_final$state
+
+distance_data = dist(dat_df, method = 'euclidean')
+hc_complete = hclust(distance_data, method = 'complete')
+```
+
+
+Experiment with different values of `k` and pick a cluster size that seems appropriate. Defend your decision.
+```{r}
+k_val = 3
+
+hc_complete_dendro = as.dendrogram(hc_complete)
+
+dend_colored = hc_complete_dendro %>%
+  color_branches(k = k_val) %>%
+  color_labels(k = k_val)
+
+plot(dend_colored)
+```
+
+
+
+Do some EDA on `dat` and/or `dat_standardized` --- can you see any patterns that might be driving these clusters? What would be some good things to start with? Create a few plots and describe your findings.
+```{r}
+dat
+dat_standardized
+```
+
+
